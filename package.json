@@ -1,0 +1,31 @@
+{
+  "name": "cdp-client-ts",
+  "version": "0.1.3",
+  "description": "CDP Client with Types",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "build": "tsc --outDir lib",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/einaraglen/cdp-client-ts.git"
+  },
+  "keywords": [
+    "CDP",
+    "Client"
+  ],
+  "author": "Einar A. Aglen",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/einaraglen/cdp-client-ts/issues"
+  },
+  "homepage": "https://github.com/einaraglen/cdp-client-ts#readme",
+  "devDependencies": {
+    "typescript": "^5.2.2"
+  },
+  "dependencies": {
+    "cdp-client": "^2.1.1"
+  }
+}
