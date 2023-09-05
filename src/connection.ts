@@ -1,4 +1,6 @@
-const ErrorCodes = {
+import { Hello } from "./studio.proto";
+
+const ErrorCodes: Record<number, string> = {
     0: "Unknown Reason",
     1000: "Normal closure, meaning that the purpose for which the connection was established has been fulfilled.",
     1001: "An endpoint is 'going away', such as a server going down or a browser having navigated away from a page.",
@@ -15,14 +17,48 @@ const ErrorCodes = {
     1015: "The connection was closed due to a failure to perform a TLS handshake (e.g., the server certificate can't be verified).",
 }
 
-class Studio {
-    constructor() {
-        const socket = new WebSocket("123")
-    }
+class Connection {
+  private socket?: WebSocket;
+  private url: string;
+  
+  public connected: boolean = false;
+  public onSocketClose = () => {}
+  public onSocketOpen = () => {}
+  public onSocketMessage = (payload: any) => {}
 
-    onClosed = (event: any) => {
+  constructor(url: string) {
+    this.url = url;
+    this.connect();
+  }
 
-    }
+  public connect = () => {
+    this.socket = new WebSocket(this.url);
+    this.socket.onopen = this.onOpen;
+    this.socket.onclose = this.onClose;
+    this.socket.onmessage = this.onMessage;
+    this.socket.onerror = this.onError;
+  };
+
+  private onMessage = (event: MessageEvent<any>) => {
+    const decoded = Hello.decode(event)
+    this.onSocketMessage(decoded)
+  };
+
+  private onError = (event: Event) => {
+    this.connected = false;
+  };
+
+  private onOpen = () => {
+    this.connected = true;
+    this.onSocketOpen()
+  };
+
+  private onClose = (event: CloseEvent) => {
+    this.connected = false;
+    const reason = ErrorCodes[event.code];
+    console.warn(reason ?? ErrorCodes[0]);
+    this.onSocketClose();
+  };
 }
 
-export default Studio;
+export default Connection;
