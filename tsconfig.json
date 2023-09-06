@@ -10,6 +10,6 @@
     "forceConsistentCasingInFileNames": true,
     "declaration": true,
   },
-  "include": ["./src/*.ts"],
+  "include": ["./src/*.ts", "bad.ts", "src/models/studio.proto.ts", "src/handlers/requester.ts", "src/handlers/receiver.ts", "src/handlers/connection.ts"],
   "exclude": ["node_modules"]
 }

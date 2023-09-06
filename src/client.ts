@@ -1,29 +1,31 @@
-import Connection from "./connection";
-import { Node } from "./studio.proto"
+import Connection from "./handlers/connection";
+import Receiver from "./handlers/receiver";
+import Requester from "./handlers/requester";
 
 class Client {
-    private connection: Connection;
+  public static SYSTEM_NODE_ID = 0;
+  private nodes: Map<number, any>
+  private connection: Connection;
+  private receiver: Receiver;
+  private requester: Requester;
 
-    constructor(url: string) {
-        this.connection = new Connection(url);
-        this.connection.onSocketClose = this.onClose;
-        this.connection.onSocketMessage = this.onMessage;
-        this.connection.connect();
-    }
+  constructor(url: string) {
+    this.nodes = new Map();
+    this.connection = new Connection(url, this.nodes);
+    this.receiver = new Receiver(this.nodes);
+    this.requester = new Requester(this.connection, this.nodes);
+    this.connection.addListener("message", this.receiver.onMessage);
+  }
 
-    isConnected = () => {
-        return this.connection.connected;
-    }
+  public test = async () => {
+  
+    this.requester.makeStructureRequest(6).then((value: any) => {
+      console.log(6)
+      this.requester.makeStructureRequest(462).then((value: any) => console.log(462));
+      this.requester.makeStructureRequest(462).then((value: any) => console.log(462));
 
-    onMessage = (payload: Node) => {
-        payload.info
-    }
-
-    onClose = () => {
-        setTimeout(this.connection.connect, 3e2)
-        this.connection.connect()
-    }
-    
+    });
+  };
 }
 
 export default Client;
