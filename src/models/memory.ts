@@ -18,9 +18,11 @@ class Memory {
         const heritage = route.split(".");
         let lastLeaf: any = this.memory[heritage[0]]
         let lastKey: number = this.memory[heritage[0]]._id;
+        let remaining: string[] = []
 
         for (let i = 1; i < heritage.length; i++) {
             if (lastLeaf[heritage[i]] == null) {
+                remaining = heritage.slice(i, heritage.length);
                 break;
             }
 
