@@ -4,11 +4,21 @@ type MemoryTree<T> = {
 }
 
 class Memory {
+    private static _instance: Memory | null = null;
     private memory: MemoryTree<any> = {} as any;
 
-    constructor() {
+    private constructor() {
 
     }
+
+    public static instance = () => {
+        if (Memory._instance == null) {
+            Memory._instance = new Memory()
+        }
+
+        return Memory._instance
+    }
+
 
     public getNodeKey = (route: string) => {
 
@@ -29,6 +39,10 @@ class Memory {
             lastLeaf = lastLeaf[heritage[i]]
             lastKey = lastLeaf[heritage[i]]._id
         }
+    }
+
+    public searchNodeKey = (parent: number, child: string) => {
+
     }
 }
 

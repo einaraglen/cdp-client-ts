@@ -1,6 +1,5 @@
 import IsomorphicSocket from "isomorphic-ws";
 import { Container, Container_Type, Hello } from "../models/studio.proto";
-import { v4 as uuidv4 } from 'uuid';
 import Client from "../client";
 
 type ListenerKeys = "close" | "open" | "message" | "error";
@@ -78,20 +77,15 @@ class Connection {
 
   private makeRootStructureRequest = () => {
     return new Promise((resolve) => {
-      const key = uuidv4();
 
       const callback = (_key: string, value: any) => {
-        if (_key != key) {
-          return;
-        }
-
         const callbacks = this.nodes.get(Client.SYSTEM_NODE_ID) ?? []
-        this.nodes.set(Client.SYSTEM_NODE_ID, callbacks.filter((c: any) => c.key != key))
+        this.nodes.set(Client.SYSTEM_NODE_ID, callbacks.filter((c: any) => c !== callback))
         resolve(value)
       }
 
       const callbacks = this.nodes.get(Client.SYSTEM_NODE_ID) ?? []
-      this.nodes.set(Client.SYSTEM_NODE_ID, [...callbacks, { key, callback }])
+      this.nodes.set(Client.SYSTEM_NODE_ID, [...callbacks, callback])
 
       const message = Container.create({ messageType: Container_Type.eStructureRequest, structureRequest: [Client.SYSTEM_NODE_ID] });
       this.send(Container.encode(message).finish());

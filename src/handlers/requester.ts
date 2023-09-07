@@ -1,6 +1,5 @@
 import Connection from "./connection";
 import { CDPValueType, ChildAdd, ChildRemove, Container, Container_Type, ValueRequest, VariantValue } from "../models/studio.proto";
-import { v4 as uuidv4 } from 'uuid';
 
 export type RequesterCallback = {
   key: string,
@@ -18,20 +17,15 @@ class Requester {
 
   public makeStructureRequest = (id: number) => {
     return new Promise((resolve) => {
-      const key = uuidv4();
 
-      const callback = (_key: string, value: any) => {
-        if (_key != key) {
-          return;
-        }
-
+      const callback = (value: any) => {
         const callbacks = this.nodes.get(id) ?? []
-        this.nodes.set(id, callbacks.filter((c: any) => c.key != key))
+        this.nodes.set(id, callbacks.filter((c: any) => c !== callback))
         resolve(value)
       }
 
       const callbacks = this.nodes.get(id) ?? []
-      this.nodes.set(id, [...callbacks, { key, callback }])
+      this.nodes.set(id, [...callbacks, callback])
 
       const message = Container.create({ messageType: Container_Type.eStructureRequest, structureRequest: [id] });
       this.connection.send(Container.encode(message).finish());

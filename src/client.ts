@@ -22,8 +22,6 @@ class Client {
     this.requester.makeStructureRequest(6).then((value: any) => {
       console.log(6)
       this.requester.makeStructureRequest(462).then((value: any) => console.log(462));
-      this.requester.makeStructureRequest(462).then((value: any) => console.log(462));
-
     });
   };
 }

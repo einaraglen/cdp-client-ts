@@ -30,31 +30,13 @@ class Receiver {
     }
   };
 
-  private parseNodes = () => {
-
-  };
-
-  private parseSystemNode = () => {
-
-  };
 
   private parseStructureResponse = (values: Node[]) => {
     values.forEach((node) => {
       if (this.nodes.has(node.info?.nodeId!)) {
         const callbacks = this.nodes.get(node.info?.nodeId!)
-        callbacks.forEach((item: any) => {
-          item.callback(item.key, node)
-        })
+        callbacks.forEach((callback: any) => callback(node))
       }
-      // console.log("received", node.info?.nodeId)
-      // this.nodes.get(node.info?.nodeId!)()
-      // // console.log(node)
-      // // console.log(node.info)
-      //   if (node.info?.nodeId == this.SYSTEM_NODE_ID) {
-      //       this.parseNodes()
-      //   } else {
-      //       this.parseSystemNode();
-      //   }
     });
   };
 
