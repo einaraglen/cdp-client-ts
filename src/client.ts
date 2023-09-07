@@ -1,28 +1,43 @@
-import Connection from "./handlers/connection";
+import Connection, { Listener, ListenerKeys } from "./handlers/connection";
 import Receiver from "./handlers/receiver";
-import Requester from "./handlers/requester";
+import Memory from "./models/memory";
+import { CDPNodeType } from "./models/studio.proto";
 
 class Client {
   public static SYSTEM_NODE_ID = 0;
-  private nodes: Map<number, any>
   private connection: Connection;
-  private receiver: Receiver;
-  private requester: Requester;
+  private memory: Memory;
 
   constructor(url: string) {
-    this.nodes = new Map();
-    this.connection = new Connection(url, this.nodes);
-    this.receiver = new Receiver(this.nodes);
-    this.requester = new Requester(this.connection, this.nodes);
-    this.connection.addListener("message", this.receiver.onMessage);
+    this.connection = Connection.instance(url);
+    this.memory = Memory.instance();
+    const receiver = new Receiver();
+    this.connection.addListener("message", receiver.onMessage);
   }
 
+  public on = (key: ListenerKeys, callback: Listener) => {
+    this.connection.addListener(key, callback);
+  };
+
+  public off = (key: ListenerKeys, callback: Listener) => {
+    this.connection.removeListener(key, callback);
+  };
+
+  public find = async (route: string) => {
+    return await this.memory.getNode(route);
+  };
+
   public test = async () => {
-  
-    this.requester.makeStructureRequest(6).then((value: any) => {
-      console.log(6)
-      this.requester.makeStructureRequest(462).then((value: any) => console.log(462));
-    });
+    try {
+      const env = await this.find("SimulatorInterface.WebUI.Environment");
+      env.forEachChild((child) => {
+        if (child.nodeType == CDPNodeType.CDP_OBJECT && child.typeName.includes("CDPSignal")) {
+          console.log(child.name)
+        }
+      })
+    } catch (e) {
+      console.log(e);
+    }
   };
 }
 

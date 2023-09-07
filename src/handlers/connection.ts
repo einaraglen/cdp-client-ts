@@ -1,39 +1,50 @@
 import IsomorphicSocket from "isomorphic-ws";
-import { Container, Container_Type, Hello } from "../models/studio.proto";
+import { Container, Container_Type, Hello, Node, Error as ProtoError } from "../models/studio.proto";
 import Client from "../client";
+import StructureCallbacks from "./callbacks/structure_callbacks";
+import Memory from "../models/memory";
 
-type ListenerKeys = "close" | "open" | "message" | "error";
-type Listener = (value?: any) => void;
+export type ListenerKeys = "close" | "open" | "message" | "error";
+export type Listener = (value?: any) => void;
 
 class Connection {
+  private static _instance: Connection | null = null;
   private socket: WebSocket;
+  private memory: Memory;
   private url: string;
-  private listeners: Map<string, Listener[]>;
-  private buffer: ArrayBufferLike[] = [];
+  private listeners: Map<string, Set<Listener>>;
+  private buffer: ArrayBufferLike[];
   private metadata?: Hello;
-  private nodes: Map<number, any>
 
-  public connected: boolean = false;
-
-  constructor(url: string, nodes: Map<number, any>) {
+  private constructor(url: string) {
     this.url = url;
-    this.nodes = nodes;
     this.listeners = new Map();
     this.socket = new IsomorphicSocket(this.url) as WebSocket;
+    this.memory = Memory.instance();
     this.socket.binaryType = "arraybuffer";
     this.socket.onopen = this.onOpen;
     this.socket.onclose = this.onClose;
     this.socket.onmessage = this.onHelloMessage;
     this.socket.onerror = this.onError;
+    this.buffer = [];
   }
+
+  public static instance = (url?: string) => {
+    if (Connection._instance == null) {
+      Connection._instance = new Connection(url!);
+    }
+
+    return Connection._instance;
+  };
 
   public getMetadata = () => {
     return this.metadata;
-  }
+  };
 
   public addListener = (key: ListenerKeys, callback: Listener) => {
-    const collection = (this.listeners.has(key) ? this.listeners.get(key)! : []) as Listener[];
-    this.listeners.set(key, [...collection, callback]);
+    const collection = this.listeners.has(key) ? this.listeners.get(key)! : new Set<Listener>();
+    collection.add(callback);
+    this.listeners.set(key, collection);
   };
 
   public removeListener = (key: ListenerKeys, callback: Listener) => {
@@ -41,11 +52,9 @@ class Connection {
       return;
     }
 
-    const collection = this.listeners.get(key) as Listener[];
-    this.listeners.set(
-      key,
-      collection.filter((listener) => listener !== callback)
-    );
+    const collection = this.listeners.get(key)!;
+    collection.delete(callback);
+    this.listeners.set(key, collection);
   };
 
   public send = (payload: ArrayBufferLike) => {
@@ -59,7 +68,7 @@ class Connection {
 
   public flush = async () => {
     if (this.socket.readyState == 0) {
-      throw new Error("Flush failed, socket not in readyState")
+      throw new Error("Flush failed, socket not in readyState");
     }
 
     this.buffer.forEach((payload) => this.socket.send(payload));
@@ -76,21 +85,17 @@ class Connection {
   };
 
   private makeRootStructureRequest = () => {
-    return new Promise((resolve) => {
+    const callbacks = StructureCallbacks.instance();
 
-      const callback = (_key: string, value: any) => {
-        const callbacks = this.nodes.get(Client.SYSTEM_NODE_ID) ?? []
-        this.nodes.set(Client.SYSTEM_NODE_ID, callbacks.filter((c: any) => c !== callback))
-        resolve(value)
-      }
-
-      const callbacks = this.nodes.get(Client.SYSTEM_NODE_ID) ?? []
-      this.nodes.set(Client.SYSTEM_NODE_ID, [...callbacks, callback])
-
+    return new Promise<void>((resolve) => {
+      callbacks.registerCallback(Client.SYSTEM_NODE_ID, (node: Node) => {
+        this.memory.insertNode(null, node)
+        resolve();
+      });
       const message = Container.create({ messageType: Container_Type.eStructureRequest, structureRequest: [Client.SYSTEM_NODE_ID] });
       this.send(Container.encode(message).finish());
-    })
-  }
+    });
+  };
 
   private onHelloMessage = (event: MessageEvent<ArrayBuffer>) => {
     const decoded = Hello.decode(new Uint8Array(event.data));
@@ -98,7 +103,11 @@ class Connection {
 
     this.socket.onmessage = this.onMessage;
 
-    this.makeRootStructureRequest().then(this.flush)
+    this.makeRootStructureRequest().then(() => {
+      this.flush()
+      this.memory.initiated = true;
+      this.memory.flush();
+    });
   };
 
   private onMessage = (event: MessageEvent<ArrayBuffer>) => {
@@ -107,21 +116,18 @@ class Connection {
 
   private onError = (event: Event) => {
     this.emit("error", event);
-    this.connected = false;
   };
 
   private onOpen = (event: Event) => {
     this.emit("open");
-    this.connected = true;
   };
 
   private onClose = (event: CloseEvent) => {
     this.emit("close", event);
-    this.connected = false;
     setTimeout(this.reconnect, 3e4);
   };
 
-  private emit = (key: ListenerKeys, event?: MessageEvent<ArrayBuffer> | Event | CloseEvent) => {
+  public emit = (key: ListenerKeys, event?: MessageEvent<ArrayBuffer> | Event | CloseEvent | ProtoError) => {
     const callbacks = this.listeners.get(key) ?? [];
     callbacks.forEach((callback) => callback(event));
   };

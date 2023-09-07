@@ -1,10 +1,16 @@
 import { Container, VariantValue, Node, Container_Type, Error as ProtoError, AuthResponse, CDPValueType } from "../models/studio.proto";
+import StructureCallbacks from "./callbacks/structure_callbacks"
+import ValueCallbacks from "./callbacks/value_callbacks";
+import Connection from "./connection";
 
 class Receiver {
-  private nodes: Map<number, any>
 
-  constructor(nodes: Map<number, any>) {
-    this.nodes = nodes;
+  private structureCallbacks: StructureCallbacks
+  private valueCallbacks: ValueCallbacks
+
+  constructor() {
+    this.structureCallbacks = StructureCallbacks.instance()
+    this.valueCallbacks = ValueCallbacks.instance()
   }
 
   public onMessage = (event: MessageEvent<ArrayBuffer>) => {
@@ -26,66 +32,42 @@ class Receiver {
         this.parseErrorResponse(decoded.error!);
         break;
       default:
-        throw new Error("Unrecognized Container Type");
+        throw new Error("Unrecognized Message Type");
     }
   };
 
 
   private parseStructureResponse = (values: Node[]) => {
     values.forEach((node) => {
-      if (this.nodes.has(node.info?.nodeId!)) {
-        const callbacks = this.nodes.get(node.info?.nodeId!)
-        callbacks.forEach((callback: any) => callback(node))
-      }
+      const id = node.info?.nodeId!
+      this.structureCallbacks.runCallbacks(id, node)
     });
   };
 
   private parseGetterResponse = (values: VariantValue[]) => {
-    console.log(values);
+    values.forEach((value) => {
+      const id = value.nodeId
+      this.valueCallbacks.runCallbacks(id, value)
+    })
   };
 
   private parseStructureChangeResponse = (values: number[]) => {
-    console.log(values);
+    const connection = Connection.instance()
+    const error = ProtoError.create({ text: "Unimplemented StructureChangeResponse", code: 404 })
+    connection.emit("error", error)
   };
 
   private parseReauthResponse = (response: AuthResponse) => {
-    console.log(response);
+    const connection = Connection.instance()
+    const error = ProtoError.create({ text: "Unimplemented ReauthResponse", code: response.resultCode })
+    connection.emit("error", error)
   };
 
   private parseErrorResponse = (error: ProtoError) => {
-    console.log(error);
+    const connection = Connection.instance()
+    connection.emit("error", error)
   };
 
-  private getValueOfVarian = (variant: VariantValue, type: CDPValueType) => {
-    switch (type) {
-      case CDPValueType.eDOUBLE:
-        return variant.dValue;
-      case CDPValueType.eFLOAT:
-        return variant.fValue;
-      case CDPValueType.eUINT64:
-        return variant.ui64Value;
-      case CDPValueType.eINT64:
-        return variant.i64Value;
-      case CDPValueType.eUINT:
-        return variant.uiValue;
-      case CDPValueType.eINT:
-        return variant.iValue;
-      case CDPValueType.eUSHORT:
-        return variant.usValue;
-      case CDPValueType.eSHORT:
-        return variant.sValue;
-      case CDPValueType.eUCHAR:
-        return variant.ucValue;
-      case CDPValueType.eCHAR:
-        return variant.cValue;
-      case CDPValueType.eBOOL:
-        return variant.bValue;
-      case CDPValueType.eSTRING:
-        return variant.strValue;
-      default:
-        throw new Error("Unrecognized Variant");
-    }
-  };
 }
 
 export default Receiver;

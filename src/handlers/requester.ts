@@ -1,5 +1,6 @@
 import Connection from "./connection";
-import { CDPValueType, ChildAdd, ChildRemove, Container, Container_Type, ValueRequest, VariantValue } from "../models/studio.proto";
+import { CDPValueType, ChildAdd, ChildRemove, Container, Container_Type, ValueRequest, VariantValue, Node } from "../models/studio.proto";
+import StructureCallbacks from "./callbacks/structure_callbacks";
 
 export type RequesterCallback = {
   key: string,
@@ -7,26 +8,26 @@ export type RequesterCallback = {
 }
 
 class Requester {
+  private static _instance: Requester | null = null;
   private connection: Connection;
-  private nodes: Map<number, any>
+  private callbacks: StructureCallbacks
 
-  constructor(connection: Connection, nodes: Map<number, any>) {
-    this.nodes = nodes;
-    this.connection = connection;
+  private constructor() {
+    this.callbacks = StructureCallbacks.instance()
+    this.connection = Connection.instance();
   }
 
+  public static instance = () => {
+    if (Requester._instance == null) {
+      Requester._instance = new Requester()
+    }
+
+    return Requester._instance
+}
+
   public makeStructureRequest = (id: number) => {
-    return new Promise((resolve) => {
-
-      const callback = (value: any) => {
-        const callbacks = this.nodes.get(id) ?? []
-        this.nodes.set(id, callbacks.filter((c: any) => c !== callback))
-        resolve(value)
-      }
-
-      const callbacks = this.nodes.get(id) ?? []
-      this.nodes.set(id, [...callbacks, callback])
-
+    return new Promise<Node>((resolve) => {
+      this.callbacks.registerCallback(id, resolve)
       const message = Container.create({ messageType: Container_Type.eStructureRequest, structureRequest: [id] });
       this.connection.send(Container.encode(message).finish());
     })
@@ -51,7 +52,7 @@ class Requester {
     this.connection.send(Container.encode(message).finish());
   };
 
-  public makeSetRequest = (id: number, type: CDPValueType, value: any, timestamp?: number) => {
+  public makeSetRequest = (id: number, type: CDPValueType, value: any, timestamp = Date.now()) => {
     const request = VariantValue.create({ nodeId: id, timestamp });
     this.setValueOfVariant(request, type, value);
     const message = Container.create({ messageType: Container_Type.eSetterRequest, setterRequest: [request] });
@@ -91,6 +92,7 @@ class Requester {
         variant.cValue = value;
         break;
       case CDPValueType.eBOOL:
+        // TODO: why is false not being set when using boolean
         variant.bValue = value;
         break;
       case CDPValueType.eSTRING:
