@@ -31,7 +31,6 @@ class Requester {
       const message = Container.create({ messageType: Container_Type.eStructureRequest, structureRequest: [id] });
       this.connection.send(Container.encode(message).finish());
     })
- 
   };
 
   public makeGetterRequest = (id: number, fs: number, sampleRate?: number, stop?: boolean) => {
@@ -53,13 +52,20 @@ class Requester {
   };
 
   public makeSetRequest = (id: number, type: CDPValueType, value: any, timestamp = Date.now()) => {
-    const request = VariantValue.create({ nodeId: id, timestamp });
+    const request: any = VariantValue.create({ nodeId: id, timestamp })
     this.setValueOfVariant(request, type, value);
     const message = Container.create({ messageType: Container_Type.eSetterRequest, setterRequest: [request] });
+    console.log(message)
     this.connection.send(Container.encode(message).finish());
   };
 
   private setValueOfVariant = (variant: VariantValue, type: CDPValueType, value: any) => {
+    for (const key in variant) {
+      if (key.includes("Value")) {
+        delete (variant as any)[key]
+      }
+    }
+
     switch (type) {
       case CDPValueType.eDOUBLE:
         variant.dValue = value;
@@ -92,7 +98,6 @@ class Requester {
         variant.cValue = value;
         break;
       case CDPValueType.eBOOL:
-        // TODO: why is false not being set when using boolean
         variant.bValue = value;
         break;
       case CDPValueType.eSTRING:

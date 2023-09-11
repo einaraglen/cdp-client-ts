@@ -1,9 +1,9 @@
 {
   "name": "cdp-client-ts",
-  "version": "0.1.4",
+  "version": "0.2.1",
   "description": "CDP Client with Types",
-  "main": "lib/index.js",
-  "types": "lib/index.d.ts",
+  "main": "lib/src/index.js",
+  "types": "lib/src/index.d.ts",
   "scripts": {
     "dev": "ts-node src/index.ts",
     "build": "tsc --outDir lib"
@@ -28,10 +28,8 @@
     "typescript": "^5.2.2"
   },
   "dependencies": {
-    "cdp-client": "^2.1.1",
     "google-protobuf": "^3.21.2",
     "isomorphic-ws": "^5.0.0",
-    "protobufjs": "^7.2.5",
-    "ws": "^8.13.0"
+    "protobufjs": "^7.2.5"
   }
 }

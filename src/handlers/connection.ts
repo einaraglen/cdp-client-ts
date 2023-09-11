@@ -1,6 +1,6 @@
 import IsomorphicSocket from "isomorphic-ws";
 import { Container, Container_Type, Hello, Node, Error as ProtoError } from "../models/studio.proto";
-import Client from "../client";
+import Client, { ClientOptions } from "../client";
 import StructureCallbacks from "./callbacks/structure_callbacks";
 import Memory from "../models/memory";
 
@@ -15,11 +15,14 @@ class Connection {
   private listeners: Map<string, Set<Listener>>;
   private buffer: ArrayBufferLike[];
   private metadata?: Hello;
+  private options: ClientOptions
+  private retry = 0
 
-  private constructor(url: string) {
+  private constructor(url: string, options: ClientOptions) {
     this.url = url;
+    this.options = options
     this.listeners = new Map();
-    this.socket = new IsomorphicSocket(this.url) as WebSocket;
+    this.socket = new IsomorphicSocket(options.protocol! + this.url) as WebSocket;
     this.memory = Memory.instance();
     this.socket.binaryType = "arraybuffer";
     this.socket.onopen = this.onOpen;
@@ -29,9 +32,9 @@ class Connection {
     this.buffer = [];
   }
 
-  public static instance = (url?: string) => {
+  public static instance = (url?: string, options?: ClientOptions) => {
     if (Connection._instance == null) {
-      Connection._instance = new Connection(url!);
+      Connection._instance = new Connection(url!, options!);
     }
 
     return Connection._instance;
@@ -76,12 +79,18 @@ class Connection {
   };
 
   private reconnect = () => {
-    this.socket = new IsomorphicSocket(this.url) as WebSocket;
+    if (this.options.maxRetry! != 0 && this.retry >= this.options.maxRetry!) {
+      return;
+    }
+
+    this.socket = new IsomorphicSocket(this.options.protocol! + this.url) as WebSocket;
     this.socket.binaryType = "arraybuffer";
     this.socket.onopen = this.onOpen;
     this.socket.onclose = this.onClose;
     this.socket.onmessage = this.onHelloMessage;
     this.socket.onerror = this.onError;
+
+    this.retry += 1
   };
 
   private makeRootStructureRequest = () => {
@@ -119,12 +128,12 @@ class Connection {
   };
 
   private onOpen = (event: Event) => {
-    this.emit("open");
+    this.emit("open", event);
   };
 
   private onClose = (event: CloseEvent) => {
     this.emit("close", event);
-    setTimeout(this.reconnect, 3e4);
+    setTimeout(this.reconnect, this.options.retryTimeout!);
   };
 
   public emit = (key: ListenerKeys, event?: MessageEvent<ArrayBuffer> | Event | CloseEvent | ProtoError) => {

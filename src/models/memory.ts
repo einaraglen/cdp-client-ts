@@ -14,6 +14,7 @@ export type TreeNode = {
 class Memory {
   private static _instance: Memory | null = null;
   private memory: Record<string, TreeNode>;
+  private dictionary: Map<number, string>
   public initiated: boolean;
   private buffer: { route: string; callback: (value: any) => void }[];
 
@@ -21,6 +22,7 @@ class Memory {
     this.initiated = false;
     this.buffer = [];
     this.memory = {} as Record<string, TreeNode>;
+    this.dictionary = new Map()
   }
 
   public static instance = () => {
@@ -32,7 +34,6 @@ class Memory {
   };
 
   public insertNode = (parent: string | null, node: Node): TreeNode | undefined => {
-    // console.log("INSERTING", node.info?.name, "into", parent);
     if (parent == null) {
       this.insertRootNode(node);
     } else {
@@ -41,9 +42,11 @@ class Memory {
   };
 
   private insertRootNode = (node: Node) => {
-    const temp = this.restructureNode(node);
+    const temp = this.buildNode(node);
     for (const key in temp.children) {
-      this.memory[key] = temp.children[key];
+      const current = temp.children[key]
+      this.memory[key] = current;
+      this.dictionary.set(current.id, key)
     }
   };
 
@@ -55,13 +58,16 @@ class Memory {
       parentNode = parentNode.children[keys[i]];
     }
 
-    const temp = this.restructureNode(node);
+    const temp = this.buildNode(node);
     parentNode.children[temp.name] = temp;
+
+    const route = keys.filter((key) => key != temp.name)
+    this.dictionary.set(temp.id, [...route, temp.name].join("."))
 
     return temp;
   };
 
-  private restructureNode = (node: Node) => {
+  private buildNode = (node: Node) => {
     const temp: TreeNode = {
       id: node.info?.nodeId!,
       name: node.info?.name!,
@@ -90,23 +96,18 @@ class Memory {
       throw new Error("Flush failed, memory not initiated");
     }
 
-    this.buffer.forEach(({ route, callback }) => this.tryNodeKey(route).then(callback));
+    this.buffer.forEach(({ route, callback }) => this.searchNodeTree(route).then(callback));
     this.buffer.splice(0, this.buffer.length);
   };
 
-  public getNode = async (route: string): Promise<StructureNode> => {
-    let { lastNode, lastIndex } = await this.tryNodeKey(route);
-
-    if (lastIndex == route.split(".").length - 1) {
-      lastIndex += 1
-    }
-
-    const { parent, node } = await this.searchNodeTree(route, lastNode, lastIndex);
+  public findNode = async (route: string): Promise<StructureNode> => {
+    let lastNode = await this.searchNodeTree(route);
+    const { parent, node } = await this.searchStudioTree(route, lastNode);
     return new StructureNode(parent, node);
   };
 
-  private tryNodeKey = (route: string): Promise<{ lastNode: TreeNode, lastIndex: number }> => {
-    return new Promise<{ lastNode: TreeNode, lastIndex: number }>((resolve) => {
+  private searchNodeTree = (route: string) => {
+    return new Promise<TreeNode>((resolve) => {
       if (!this.initiated) {
         this.buffer.push({ route, callback: resolve });
         return;
@@ -114,52 +115,51 @@ class Memory {
 
       const keys = route.split(".");
       let lastNode = this.memory[keys[0]];
-      let lastIndex = 0;
 
       for (let i = 1; i < keys.length; i++) {
         if (lastNode.children[keys[i]] == null) {
           break;
         }
 
-        lastIndex = i;
         lastNode = lastNode.children[keys[i]];
       }
 
-      resolve({ lastNode, lastIndex });
+      resolve(lastNode);
     });
   };
 
-  private searchNodeTree = async (route: string, _lastNode: TreeNode, lastIndex: number) => {
+  private searchStudioTree = async (route: string, _lastNode: TreeNode) => {
     const requester = Requester.instance();
-    const keys = route.split(".");
 
-    let parent = keys[0];
+    let parent = this.dictionary.get(_lastNode.id)!
+    let keys: string[] = []
     let lastNode = _lastNode;
 
-    for (let i = 1; i < keys.length; i++) {
-      if (i > lastIndex) {
-        const temp = await requester.makeStructureRequest(lastNode.id);
-        const child = temp.node.find((n) => n.info?.name == keys[i]);
-
-        if (child == null) {
-          console.log(JSON.stringify(this.memory))
-          throw new Error(`'${temp.info?.name}' has no child '${keys[i]}'`);
-        }
-
-        lastNode = this.insertNode(parent, child)!;
-      }
-
-      if (i != keys.length - 1) {
-        parent += "." + keys[i];
-      }
-
+    if (parent) {
+      keys = route.replace(parent + ".", "").split(".")
+    } else {
+      parent = route.replace("." + lastNode.name, "")
     }
 
-    const withChildren = await requester.makeStructureRequest(lastNode.id);
-    const node = this.insertNode(parent, withChildren)!;
+    for (const key of keys) {
+      const temp = await requester.makeStructureRequest(lastNode.id);
+      const child = temp.node.find((n) => n.info?.name == key);
 
-    return { parent, node };
-  };
+      if (child == null) {
+        throw new Error(`'${parent}' has no child '${key}'`);
+      }
+
+      lastNode = this.insertNode(parent, child)!;
+      parent = this.dictionary.get(lastNode.id)!
+    }
+
+    if (Object.keys(lastNode.children).length == 0) {
+      const withChildren = await requester.makeStructureRequest(lastNode.id);
+      lastNode = this.insertNode(parent, withChildren)!;
+    }
+
+    return { parent, node: lastNode }
+  }
 }
 
 export default Memory;

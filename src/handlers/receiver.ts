@@ -32,10 +32,9 @@ class Receiver {
         this.parseErrorResponse(decoded.error!);
         break;
       default:
-        throw new Error("Unrecognized Message Type");
+        throw new Error("Unrecognized Container Type");
     }
   };
-
 
   private parseStructureResponse = (values: Node[]) => {
     values.forEach((node) => {
@@ -46,7 +45,7 @@ class Receiver {
 
   private parseGetterResponse = (values: VariantValue[]) => {
     values.forEach((value) => {
-      const id = value.nodeId
+      const id = value.nodeId!
       this.valueCallbacks.runCallbacks(id, value)
     })
   };

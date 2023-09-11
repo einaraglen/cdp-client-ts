@@ -1,43 +1,62 @@
 import Connection, { Listener, ListenerKeys } from "./handlers/connection";
 import Receiver from "./handlers/receiver";
 import Memory from "./models/memory";
-import { CDPNodeType } from "./models/studio.proto";
+import StructureNode from "./models/node";
 
+export type ClientOptions = {
+  protocol?: "ws://" | "wss://";
+  maxRetry?: number;
+  retryTimeout?: number;
+};
+
+const defaultOptions: ClientOptions = {
+  protocol: "ws://",
+  maxRetry: 0,
+  retryTimeout: 3e4,
+};
+
+/**
+ * CDP Studio API Client
+ */
 class Client {
   public static SYSTEM_NODE_ID = 0;
   private connection: Connection;
   private memory: Memory;
 
-  constructor(url: string) {
-    this.connection = Connection.instance(url);
+  constructor(url: string, options?: ClientOptions) {
+    const _options = options ? { ...defaultOptions, ...options } : defaultOptions;
+
+    this.connection = Connection.instance(url, _options);
     this.memory = Memory.instance();
-    const receiver = new Receiver();
-    this.connection.addListener("message", receiver.onMessage);
+    this.connection.addListener("message", new Receiver().onMessage);
   }
 
-  public on = (key: ListenerKeys, callback: Listener) => {
-    this.connection.addListener(key, callback);
+  /**
+   * Subscribe to Core Events
+   * @param key String
+   * @param callback Function
+   */
+  public on = (key: Exclude<ListenerKeys, "message">, callback: Listener) => {
+    this.connection.addListener(key as any, callback);
   };
 
-  public off = (key: ListenerKeys, callback: Listener) => {
-    this.connection.removeListener(key, callback);
+  /**
+   * Unsubscribe to Core Events
+   * @param key String
+   * @param callback Function
+   */
+  public off = (key: Exclude<ListenerKeys, "message">, callback: Listener) => {
+    this.connection.removeListener(key as any, callback);
   };
 
+  /**
+   * Search for Nodes in Studio API Tree
+   * @param route String
+   * @throws Error
+   * @returns Promise<StructureNode>
+   */
   public find = async (route: string) => {
-    return await this.memory.getNode(route);
-  };
-
-  public test = async () => {
-    try {
-      const env = await this.find("SimulatorInterface.WebUI.Environment");
-      env.forEachChild((child) => {
-        if (child.nodeType == CDPNodeType.CDP_OBJECT && child.typeName.includes("CDPSignal")) {
-          console.log(child.name)
-        }
-      })
-    } catch (e) {
-      console.log(e);
-    }
+    return await this.memory.findNode(route);
   };
 }
 

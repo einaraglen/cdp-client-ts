@@ -1,4 +1,4 @@
-import Client from "./client"
+import Client, { ClientOptions } from "./client"
+import { CDPNodeType, CDPValueType } from "./models/studio.proto"
 
-const client = new Client("ws://127.0.0.1:7694")
-client.test()
+export { Client, ClientOptions, CDPNodeType, CDPValueType }

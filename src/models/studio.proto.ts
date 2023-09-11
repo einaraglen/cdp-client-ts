@@ -655,25 +655,25 @@ export interface ChildRemove {
 
 /** Common Variant value type for a remote node. */
 export interface VariantValue {
-  nodeId: number;
-  dValue: number;
-  fValue: number;
-  ui64Value: number;
-  i64Value: number;
-  uiValue: number;
-  iValue: number;
+  nodeId?: number;
+  dValue?: number;
+  fValue?: number;
+  ui64Value?: number;
+  i64Value?: number;
+  uiValue?: number;
+  iValue?: number;
   /** uint used as ushort (which protobuf doesnt have) */
-  usValue: number;
+  usValue?: number;
   /** int used as short */
-  sValue: number;
+  sValue?: number;
   /** uint used as uchar */
-  ucValue: number;
+  ucValue?: number;
   /** int used as char */
-  cValue: number;
-  bValue: boolean;
-  strValue: string;
+  cValue?: number;
+  bValue?: boolean;
+  strValue?: string;
   /** Source may provide timestamp for sent value */
-  timestamp: number;
+  timestamp?: number;
 }
 
 /** Single and periodic value request message. */
@@ -2167,47 +2167,47 @@ function createBaseVariantValue(): VariantValue {
 
 export const VariantValue = {
   encode(message: VariantValue, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.nodeId !== 0) {
+    if (message.nodeId != null) {
       writer.uint32(8).uint32(message.nodeId);
     }
-    if (message.dValue !== 0) {
+    if (message.timestamp != null) {
+      writer.uint32(112).uint64(message.timestamp);
+    }
+    if (message.dValue != null) {
       writer.uint32(17).double(message.dValue);
     }
-    if (message.fValue !== 0) {
+    if (message.fValue != null) {
       writer.uint32(29).float(message.fValue);
     }
-    if (message.ui64Value !== 0) {
+    if (message.ui64Value != null) {
       writer.uint32(32).uint64(message.ui64Value);
     }
-    if (message.i64Value !== 0) {
+    if (message.i64Value != null) {
       writer.uint32(40).sint64(message.i64Value);
     }
-    if (message.uiValue !== 0) {
+    if (message.uiValue != null) {
       writer.uint32(48).uint32(message.uiValue);
     }
-    if (message.iValue !== 0) {
+    if (message.iValue != null) {
       writer.uint32(56).sint32(message.iValue);
     }
-    if (message.usValue !== 0) {
+    if (message.usValue != null) {
       writer.uint32(64).uint32(message.usValue);
     }
-    if (message.sValue !== 0) {
+    if (message.sValue != null) {
       writer.uint32(72).sint32(message.sValue);
     }
-    if (message.ucValue !== 0) {
+    if (message.ucValue != null) {
       writer.uint32(80).uint32(message.ucValue);
     }
-    if (message.cValue !== 0) {
+    if (message.cValue != null) {
       writer.uint32(88).sint32(message.cValue);
     }
-    if (message.bValue === true) {
+    if (message.bValue != null) {
       writer.uint32(96).bool(message.bValue);
     }
-    if (message.strValue !== "") {
+    if (message.strValue != null) {
       writer.uint32(106).string(message.strValue);
-    }
-    if (message.timestamp !== 0) {
-      writer.uint32(112).uint64(message.timestamp);
     }
     return writer;
   },
@@ -2328,20 +2328,20 @@ export const VariantValue = {
 
   fromJSON(object: any): VariantValue {
     return {
-      nodeId: isSet(object.nodeId) ? Number(object.nodeId) : 0,
-      dValue: isSet(object.dValue) ? Number(object.dValue) : 0,
-      fValue: isSet(object.fValue) ? Number(object.fValue) : 0,
-      ui64Value: isSet(object.ui64Value) ? Number(object.ui64Value) : 0,
-      i64Value: isSet(object.i64Value) ? Number(object.i64Value) : 0,
-      uiValue: isSet(object.uiValue) ? Number(object.uiValue) : 0,
-      iValue: isSet(object.iValue) ? Number(object.iValue) : 0,
-      usValue: isSet(object.usValue) ? Number(object.usValue) : 0,
-      sValue: isSet(object.sValue) ? Number(object.sValue) : 0,
-      ucValue: isSet(object.ucValue) ? Number(object.ucValue) : 0,
-      cValue: isSet(object.cValue) ? Number(object.cValue) : 0,
-      bValue: isSet(object.bValue) ? Boolean(object.bValue) : false,
-      strValue: isSet(object.strValue) ? String(object.strValue) : "",
-      timestamp: isSet(object.timestamp) ? Number(object.timestamp) : 0,
+      nodeId: isSet(object.nodeId) ? Number(object.nodeId) : undefined,
+      dValue: isSet(object.dValue) ? Number(object.dValue) : undefined,
+      fValue: isSet(object.fValue) ? Number(object.fValue) : undefined,
+      ui64Value: isSet(object.ui64Value) ? Number(object.ui64Value) : undefined,
+      i64Value: isSet(object.i64Value) ? Number(object.i64Value) : undefined,
+      uiValue: isSet(object.uiValue) ? Number(object.uiValue) : undefined,
+      iValue: isSet(object.iValue) ? Number(object.iValue) : undefined,
+      usValue: isSet(object.usValue) ? Number(object.usValue) : undefined,
+      sValue: isSet(object.sValue) ? Number(object.sValue) : undefined,
+      ucValue: isSet(object.ucValue) ? Number(object.ucValue) : undefined,
+      cValue: isSet(object.cValue) ? Number(object.cValue) : undefined,
+      bValue: isSet(object.bValue) ? Boolean(object.bValue) : undefined,
+      strValue: isSet(object.strValue) ? String(object.strValue) : undefined,
+      timestamp: isSet(object.timestamp) ? Number(object.timestamp) : undefined,
     };
   },
 
@@ -2370,20 +2370,20 @@ export const VariantValue = {
 
   fromPartial<I extends Exact<DeepPartial<VariantValue>, I>>(object: I): VariantValue {
     const message = createBaseVariantValue();
-    message.nodeId = object.nodeId ?? 0;
-    message.dValue = object.dValue ?? 0;
-    message.fValue = object.fValue ?? 0;
-    message.ui64Value = object.ui64Value ?? 0;
-    message.i64Value = object.i64Value ?? 0;
-    message.uiValue = object.uiValue ?? 0;
-    message.iValue = object.iValue ?? 0;
-    message.usValue = object.usValue ?? 0;
-    message.sValue = object.sValue ?? 0;
-    message.ucValue = object.ucValue ?? 0;
-    message.cValue = object.cValue ?? 0;
-    message.bValue = object.bValue ?? false;
-    message.strValue = object.strValue ?? "";
-    message.timestamp = object.timestamp ?? 0;
+    message.nodeId = object.nodeId;
+    message.dValue = object.dValue;
+    message.fValue = object.fValue;
+    message.ui64Value = object.ui64Value;
+    message.i64Value = object.i64Value;
+    message.uiValue = object.uiValue;
+    message.iValue = object.iValue;
+    message.usValue = object.usValue;
+    message.sValue = object.sValue;
+    message.ucValue = object.ucValue;
+    message.cValue = object.cValue;
+    message.bValue = object.bValue;
+    message.strValue = object.strValue;
+    message.timestamp = object.timestamp;
     return message;
   },
 };
