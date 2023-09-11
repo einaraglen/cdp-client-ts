@@ -55,7 +55,6 @@ class Requester {
     const request: any = VariantValue.create({ nodeId: id, timestamp })
     this.setValueOfVariant(request, type, value);
     const message = Container.create({ messageType: Container_Type.eSetterRequest, setterRequest: [request] });
-    console.log(message)
     this.connection.send(Container.encode(message).finish());
   };
 

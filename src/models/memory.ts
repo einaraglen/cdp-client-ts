@@ -59,6 +59,11 @@ class Memory {
     }
 
     const temp = this.buildNode(node);
+
+    if (parentNode.id == temp.id) {
+      throw new Error(`Cannot insert ${temp.name} into ${parentNode.name}`)
+    }
+
     parentNode.children[temp.name] = temp;
 
     const route = keys.filter((key) => key != temp.name)
@@ -135,27 +140,30 @@ class Memory {
     let keys: string[] = []
     let lastNode = _lastNode;
 
-    if (parent) {
+    if (parent && parent != route) {
       keys = route.replace(parent + ".", "").split(".")
     } else {
       parent = route.replace("." + lastNode.name, "")
     }
 
-    for (const key of keys) {
+    for (let i = 0; i < keys.length; i++) {
       const temp = await requester.makeStructureRequest(lastNode.id);
-      const child = temp.node.find((n) => n.info?.name == key);
+      const child = temp.node.find((n) => n.info?.name == keys[i]);
 
       if (child == null) {
-        throw new Error(`'${parent}' has no child '${key}'`);
+        throw new Error(`'${parent}' has no child '${keys[i]}'`);
       }
 
       lastNode = this.insertNode(parent, child)!;
-      parent = this.dictionary.get(lastNode.id)!
+
+      if (i != keys.length - 1) {
+        parent = this.dictionary.get(lastNode.id)!
+      }
     }
 
     if (Object.keys(lastNode.children).length == 0) {
-      const withChildren = await requester.makeStructureRequest(lastNode.id);
-      lastNode = this.insertNode(parent, withChildren)!;
+      const node = await requester.makeStructureRequest(lastNode.id);
+      lastNode = this.insertNode(parent, node)!;
     }
 
     return { parent, node: lastNode }
