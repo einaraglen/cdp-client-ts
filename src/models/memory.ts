@@ -14,7 +14,6 @@ export type TreeNode = {
 class Memory {
   private static _instance: Memory | null = null;
   private memory: Record<string, TreeNode>;
-  private dictionary: Map<number, string>
   public initiated: boolean;
   private buffer: { route: string; callback: (value: any) => void }[];
 
@@ -22,7 +21,6 @@ class Memory {
     this.initiated = false;
     this.buffer = [];
     this.memory = {} as Record<string, TreeNode>;
-    this.dictionary = new Map()
   }
 
   public static instance = () => {
@@ -44,9 +42,8 @@ class Memory {
   private insertRootNode = (node: Node) => {
     const temp = this.buildNode(node);
     for (const key in temp.children) {
-      const current = temp.children[key]
+      const current = temp.children[key];
       this.memory[key] = current;
-      this.dictionary.set(current.id, key)
     }
   };
 
@@ -61,13 +58,10 @@ class Memory {
     const temp = this.buildNode(node);
 
     if (parentNode.id == temp.id) {
-      throw new Error(`Cannot insert ${temp.name} into ${parentNode.name}`)
+      throw new Error(`Cannot insert ${temp.name}:${temp.id} into ${parentNode.name}:${parentNode.id}`);
     }
 
     parentNode.children[temp.name] = temp;
-
-    const route = keys.filter((key) => key != temp.name)
-    this.dictionary.set(temp.id, [...route, temp.name].join("."))
 
     return temp;
   };
@@ -136,15 +130,14 @@ class Memory {
   private searchStudioTree = async (route: string, _lastNode: TreeNode) => {
     const requester = Requester.instance();
 
-    let parent = this.dictionary.get(_lastNode.id)!
-    let keys: string[] = []
     let lastNode = _lastNode;
 
-    if (parent && parent != route) {
-      keys = route.replace(parent + ".", "").split(".")
-    } else {
-      parent = route.replace("." + lastNode.name, "")
-    }
+    const temp = route.split(".");
+    const lastIndex = temp.findIndex((key) => key == lastNode.name);
+    
+    let keys = temp.slice(lastIndex + 1);
+    const offset = keys.length == 0 ? -1 : 1
+    let parent = temp.slice(0, lastIndex + offset).join(".");
 
     for (let i = 0; i < keys.length; i++) {
       const temp = await requester.makeStructureRequest(lastNode.id);
@@ -157,7 +150,7 @@ class Memory {
       lastNode = this.insertNode(parent, child)!;
 
       if (i != keys.length - 1) {
-        parent = this.dictionary.get(lastNode.id)!
+        parent += "." + lastNode.name;
       }
     }
 
@@ -166,8 +159,8 @@ class Memory {
       lastNode = this.insertNode(parent, node)!;
     }
 
-    return { parent, node: lastNode }
-  }
+    return { parent, node: lastNode };
+  };
 }
 
 export default Memory;
