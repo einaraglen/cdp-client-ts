@@ -144,7 +144,9 @@ class Memory {
       const child = temp.node.find((n) => n.info?.name == keys[i]);
 
       if (child == null) {
-        throw new Error(`'${parent}' has no child '${keys[i]}'`);
+        throw new Error(`'${parent}' has no child '${keys[i]}'` +
+        `\nStarting at ${_lastNode.name} when searching for ${route}`
+        );
       }
 
       lastNode = this.insertNode(parent, child)!;

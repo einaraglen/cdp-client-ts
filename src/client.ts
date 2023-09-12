@@ -1,7 +1,6 @@
 import Connection, { Listener, ListenerKeys } from "./handlers/connection";
 import Receiver from "./handlers/receiver";
 import Memory from "./models/memory";
-import StructureNode from "./models/node";
 
 export type ClientOptions = {
   protocol?: "ws://" | "wss://";
