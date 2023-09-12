@@ -1,4 +1,4 @@
-import { Container, VariantValue, Node, Container_Type, Error as ProtoError, AuthResponse, CDPValueType } from "../models/studio.proto";
+import { Container, VariantValue, Node, Container_Type, Error as ProtoError, AuthResponse } from "../models/studio.proto";
 import StructureCallbacks from "./callbacks/structure_callbacks"
 import ValueCallbacks from "./callbacks/value_callbacks";
 import Connection from "./connection";

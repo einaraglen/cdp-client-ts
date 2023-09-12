@@ -1,4 +1,4 @@
-import { TreeNode } from "./memory";
+import Memory, { TreeNode } from "./memory";
 import { CDPNodeType, CDPValueType } from "./studio.proto";
 import ValueCallbacks from "../handlers/callbacks/value_callbacks";
 import Requester from "../handlers/requester";
@@ -10,9 +10,10 @@ class StructureNode {
   public valueType: CDPValueType;
   public typeName: string;
   public route: string = "";
-  private children: Record<string, Omit<TreeNode, "children">> = {};
+  public lastValue: any | null = null
+  private children: Record<string, StructureNode> = {};
 
-  constructor(parent: string, node: TreeNode) {
+  constructor(parent: string | null, node: TreeNode) {
     this.id = node.id;
     this.name = node.name;
     this.nodeType = node.nodeType;
@@ -26,7 +27,7 @@ class StructureNode {
    * Iterate over Child Nodes
    * @param callback Function
    */
-  public forEachChild = (callback: (child: Omit<TreeNode, "children">) => void) => {
+  public forEachChild = (callback: (child: StructureNode) => void) => {
     for (const name in this.children) {
       callback(this.children[name]);
     }
@@ -79,6 +80,7 @@ class StructureNode {
    */
   public setValue = (value: any, timestamp?: number) => {
     const requester = Requester.instance();
+    this.setLastValue(value)
     requester.makeSetRequest(this.id, this.valueType, value, timestamp);
   };
 
@@ -100,17 +102,37 @@ class StructureNode {
     callbacks.unregisterCallback(this.id, callback);
   };
 
-  private insertRoute = (parent: string, name: string) => {
-    const keys = parent.split(".");
-    const filteren = keys.filter((key) => key != name);
-    this.route = [...filteren, name].join(".");
+  public setLastValue = (value: any) => {
+    this.lastValue = value
+  }
+
+  public childCount = () => {
+    return Object.keys(this.children).length
+  }
+
+  public insertChild = (child: StructureNode) => {
+    this.children[child.name] = child;
+  }
+
+  private insertRoute = (parent: string | null, name: string) => {
+    let temp = ""
+
+    if (parent == null) {
+      temp = name
+    } else {
+      const keys = parent.split(".");
+      const filteren = keys.filter((key) => key != name);
+      temp = [...filteren, name].join(".");
+    }
+
+    Memory.instance().registerNode(this.id, temp)
+    this.route = temp;
+    
   };
 
-  private insertChildren = (children: Record<string, TreeNode>) => {
+  public insertChildren = (children: Record<string, StructureNode>) => {
     for (const name in children) {
-      const child = { ...children[name] } as any;
-      delete child.children;
-      this.children[name] = child;
+      this.children[name] = children[name];
     }
   };
 }

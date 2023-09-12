@@ -1,3 +1,4 @@
+import Memory from "../../models/memory";
 import { CDPValueType, VariantValue } from "../../models/studio.proto";
 import Requester from "../requester";
 
@@ -27,9 +28,15 @@ class ValueCallbacks {
     if (!this.nodes.has(id)) {
       return;
     }
+
+    const memory = Memory.instance()
     const { type, callbacks } = this.nodes.get(id)!;
+    const normalized = this.getValueOfVariant(value, type)
+
+    memory.setLastValueOfNode(id, normalized)
+
     callbacks.forEach((callback) => {
-      callback(this.getValueOfVariant(value, type));
+      callback(normalized);
     });
   };
 
