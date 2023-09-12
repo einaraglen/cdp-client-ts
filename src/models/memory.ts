@@ -14,14 +14,14 @@ export type TreeNode = {
 class Memory {
   private static _instance: Memory | null = null;
   private memory: Record<string, StructureNode>;
-  private dictionary: Record<number, string>
+  private dictionary: Record<number, string>;
   public initiated: boolean;
   private buffer: { route: string; callback: (value: any) => void }[];
 
   private constructor() {
     this.initiated = false;
     this.buffer = [];
-    this.dictionary = {} as Record<number, string>
+    this.dictionary = {} as Record<number, string>;
     this.memory = {} as Record<string, StructureNode>;
   }
 
@@ -34,24 +34,24 @@ class Memory {
   };
 
   public registerNode = (id: number, route: string) => {
-    this.dictionary[id] = route
-  }
+    this.dictionary[id] = route;
+  };
 
   public setLastValueOfNode = async (id: number, value: any) => {
     if (!(id in this.dictionary)) {
       return;
     }
 
-    const route = this.dictionary[id]
+    const route = this.dictionary[id];
 
-    const node = await this.searchNodeTree(route)
+    const node = await this.searchNodeTree(route);
 
     if (node.id != id) {
-      throw new Error("Dictionary is out of sync")
+      throw new Error("Dictionary is out of sync");
     }
 
-    node.setLastValue(value)
-  }
+    node.setLastValue(value);
+  };
 
   public insertNode = (parent: string | null, node: Node): StructureNode | undefined => {
     if (parent == null) {
@@ -83,13 +83,20 @@ class Memory {
     }
 
     if (parentNode.hasChild(child.name) && parentNode.child(child.name).childCount() == child.childCount()) {
-      child = parentNode.child(child.name);
-    } else if (parentNode.hasChild(child.name)) {
-      child.forEachChild((subchild) => parentNode.child(child.name).insertChild(subchild));
-    } else {
-      console.log("Inserting", child.name, "into", parentNode.name)
-      parentNode.insertChild(child);
+      return parentNode.child(child.name);
     }
+
+    if (parentNode.hasChild(child.name)) {
+      child.forEachChild((subchild) => {
+        if (!parentNode.child(child.name).hasChild(subchild.name)) {
+          parentNode.child(child.name).insertChild(subchild);
+        }
+      });
+
+      return parentNode.child(child.name);
+    }
+
+    parentNode.insertChild(child);
 
     return child;
   };

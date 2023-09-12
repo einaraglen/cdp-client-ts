@@ -104,7 +104,7 @@ class ValueCallbacks {
       case CDPValueType.eSTRING:
         return variant.strValue;
       default:
-        throw new Error("Unrecognized Variant");
+        return null
     }
   };
 }
