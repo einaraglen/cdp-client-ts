@@ -1,15 +1,6 @@
-import Requester from "../handlers/requester";
+import Requester, { CDPValue } from "../handlers/requester";
 import StructureNode from "../models/node";
-import { CDPNodeType, CDPValueType, Node } from "./studio.proto";
-
-export type TreeNode = {
-  id: number;
-  name: string;
-  nodeType: CDPNodeType;
-  valueType: CDPValueType;
-  typeName: string;
-  children: Record<string, StructureNode>;
-};
+import { Node } from "./studio.proto";
 
 class Memory {
   private static _instance: Memory | null = null;
@@ -37,46 +28,34 @@ class Memory {
     this.dictionary[id] = route;
   };
 
-  public setLastValueOfNode = async (id: number, value: any) => {
+  public setLastValueOfNode = async (id: number, value: CDPValue) => {
     if (!(id in this.dictionary)) {
       return;
     }
 
-    const route = this.dictionary[id];
-
-    const node = await this.searchNodeTree(route);
-
-    if (node.id != id) {
-      throw new Error("Dictionary is out of sync");
-    }
-
-    node.setLastValue(value);
+    const node = await this.searchNodeTree(this.dictionary[id]);
+    node.lastValue = value;
   };
 
-  public insertNode = (parent: string | null, node: Node): StructureNode | undefined => {
+  public insertNode = (parent: string | null, node: Node): StructureNode | void => {
     if (parent == null) {
-      this.insertRootNode(node);
-    } else {
-      return this.insertTreeNode(parent, node);
+      return this.insertRootNode(node);
     }
+
+    return this.insertTreeNode(parent, node);
   };
 
   private insertRootNode = (node: Node) => {
     node.node.forEach((child) => {
-      const built = this.buildNode(null, child);
+      const built = new StructureNode(null, child);
       this.memory[built.name] = built;
     });
   };
 
   private insertTreeNode = (parent: string, node: Node) => {
     const keys = parent.split(".");
-    let parentNode: StructureNode = this.memory[keys[0]];
-
-    for (let i = 1; i < keys.length; i++) {
-      parentNode = parentNode.child(keys[i]);
-    }
-
-    let child = this.buildNode(parentNode.route, node);
+    let parentNode: StructureNode = keys.reduce<StructureNode>((res, curr, idx) => (idx > 0 ? res.child(curr) : res), this.memory[keys[0]]);
+    let child = new StructureNode(parentNode.route, node);
 
     if (parentNode.id == child.id) {
       throw new Error(`Cannot insert ${child.name}:${child.id} into ${parentNode.name}:${parentNode.id}`);
@@ -99,35 +78,6 @@ class Memory {
     parentNode.insertChild(child);
 
     return child;
-  };
-
-  private buildNode = (parent: string | null, node: Node) => {
-    const temp: TreeNode = {
-      id: node.info?.nodeId!,
-      name: node.info?.name!,
-      nodeType: node.info?.nodeType!,
-      valueType: node.info?.valueType!,
-      typeName: node.info?.typeName!,
-      children: {},
-    };
-
-    const built = new StructureNode(parent, temp);
-    const route = [parent, built.name].filter((r) => r != null).join(".");
-
-    node.node.forEach((child) => {
-      built.insertChild(
-        new StructureNode(route, {
-          id: child.info?.nodeId!,
-          name: child.info?.name!,
-          nodeType: child.info?.nodeType!,
-          valueType: child.info?.valueType!,
-          typeName: child.info?.typeName!,
-          children: {},
-        })
-      );
-    });
-
-    return built;
   };
 
   public flush = () => {
@@ -175,27 +125,23 @@ class Memory {
     const lastIndex = temp.findIndex((key) => key == lastNode.name);
 
     let keys = temp.slice(lastIndex + 1);
-    const offset = keys.length == 0 ? -1 : 1;
+    const offset = keys.length == 0 ? 0 : 1;
     let parent = temp.slice(0, lastIndex + offset).join(".");
 
-    for (let i = 0; i < keys.length; i++) {
+    for (const key of keys) {
       const temp = await requester.makeStructureRequest(lastNode.id);
-      const child = temp.node.find((n) => n.info?.name == keys[i]);
+      const child = temp.node.find((n) => n.info?.name == key);
 
       if (child == null) {
-        throw new Error(`'${parent}' has no child '${keys[i]}`);
+        throw new Error(`'${lastNode.route}' has no child '${key}`);
       }
 
+      parent = lastNode.route;
       lastNode = this.insertNode(parent, child)!;
-
-      if (i != keys.length - 1) {
-        parent += "." + lastNode.name;
-      }
     }
 
-    const node = await requester.makeStructureRequest(lastNode.id);
-
-    if (lastNode.childCount() != node.node.length) {
+    if (lastNode.childCount() == 0) {
+      const node = await requester.makeStructureRequest(lastNode.id);
       lastNode = this.insertNode(parent, node)!;
     }
 

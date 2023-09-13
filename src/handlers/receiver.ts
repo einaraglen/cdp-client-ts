@@ -52,7 +52,7 @@ class Receiver {
 
   private parseStructureChangeResponse = (values: number[]) => {
     const connection = Connection.instance()
-    const error = ProtoError.create({ text: "Unimplemented StructureChangeResponse", code: 404 })
+    const error = ProtoError.create({ text: "Unimplemented StructureChangeResponse", code: 501 })
     connection.emit("error", error)
   };
 

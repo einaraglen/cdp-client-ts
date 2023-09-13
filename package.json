@@ -1,6 +1,6 @@
 {
   "name": "cdp-client-ts",
-  "version": "0.3.2",
+  "version": "0.3.5",
   "description": "CDP Client with Types",
   "main": "lib/src/index.js",
   "types": "lib/src/index.d.ts",
@@ -14,8 +14,10 @@
   },
   "keywords": [
     "CDP",
-    "Client",
-    "cdp-client"
+    "cdp-client",
+    "cdp-client-ts",
+    "isomorphic",
+    "typescript"
   ],
   "author": "Einar A. Aglen",
   "license": "ISC",

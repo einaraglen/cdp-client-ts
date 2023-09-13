@@ -1,7 +1,7 @@
-import Memory, { TreeNode } from "./memory";
-import { CDPNodeType, CDPValueType } from "./studio.proto";
+import Memory from "./memory";
+import { CDPNodeType, CDPValueType, Node } from "./studio.proto";
 import ValueCallbacks from "../handlers/callbacks/value_callbacks";
-import Requester from "../handlers/requester";
+import Requester, { CDPValue } from "../handlers/requester";
 
 class StructureNode {
   public id: number;
@@ -13,14 +13,14 @@ class StructureNode {
   public lastValue: any | null = null
   private children: Record<string, StructureNode> = {};
 
-  constructor(parent: string | null, node: TreeNode) {
-    this.id = node.id;
-    this.name = node.name;
-    this.nodeType = node.nodeType;
-    this.valueType = node.valueType;
-    this.typeName = node.typeName;
-    this.insertRoute(parent, node.name);
-    this.insertChildren(node.children);
+  constructor(parent: string | null, node: Node) {
+    this.id = node.info?.nodeId!;
+    this.name = node.info?.name!;
+    this.nodeType = node.info?.nodeType!;
+    this.valueType = node.info?.valueType!;
+    this.typeName = node.info?.typeName!;
+    this.insertRoute(parent, node.info?.name!);
+    this.insertChildren(node.node);
   }
 
   /**
@@ -78,9 +78,8 @@ class StructureNode {
    * @param value Value
    * @param timestamp Number
    */
-  public setValue = (value: any, timestamp?: number) => {
+  public setValue = (value: CDPValue, timestamp?: number) => {
     const requester = Requester.instance();
-    this.setLastValue(value)
     requester.makeSetRequest(this.id, this.valueType, value, timestamp);
   };
 
@@ -88,7 +87,7 @@ class StructureNode {
    *  Subscribe to Value
    * @param callback Function
    */
-  public subscribeToValue = (callback: (value: any) => void) => {
+  public subscribeToValue = (callback: (value: CDPValue) => void) => {
     const callbacks = ValueCallbacks.instance();
     callbacks.registerCallback(this.id, this.valueType, callback);
   };
@@ -97,14 +96,10 @@ class StructureNode {
    * Unsubscribe to Value
    * @param callback Function
    */
-  public unsubscribeToValue = (callback: (value: any) => void) => {
+  public unsubscribeToValue = (callback: (value: CDPValue) => void) => {
     const callbacks = ValueCallbacks.instance();
     callbacks.unregisterCallback(this.id, callback);
   };
-
-  public setLastValue = (value: any) => {
-    this.lastValue = value
-  }
 
   public childCount = () => {
     return Object.keys(this.children).length
@@ -130,9 +125,9 @@ class StructureNode {
     
   };
 
-  public insertChildren = (children: Record<string, StructureNode>) => {
-    for (const name in children) {
-      this.children[name] = children[name];
+  private insertChildren = (children: Node[]) => {
+    for (const node of children) {
+      this.children[node.info?.name!] = new StructureNode(this.route, node);
     }
   };
 }
