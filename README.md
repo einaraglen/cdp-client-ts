@@ -14,7 +14,7 @@ async function main() {
   /* Default options can be changed on Client Init */
   const options: ClientOptions = {
     protocol: "ws://",  // ws:// or wss://
-    maxRetry: 0,        // maxRetry == 1 => Infinity
+    maxRetry: 0,        // maxRetry == 0 => Infinity
     retryTimeout: 3e4   // waiting time before retrying connection
   }
   
