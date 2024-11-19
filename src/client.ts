@@ -4,14 +4,10 @@ import Memory from "./models/memory";
 
 export type ClientOptions = {
   protocol?: "ws://" | "wss://";
-  maxRetry?: number;
-  retryTimeout?: number;
 };
 
 const defaultOptions: ClientOptions = {
   protocol: "ws://",
-  maxRetry: 0,
-  retryTimeout: 3e4,
 };
 
 /**
@@ -57,6 +53,25 @@ class Client {
   public find = async (route: string) => {
     return await this.memory.findNode(route);
   };
+
+  /**
+   * Get Application Metadata
+   * @returns Metadata | null
+   */
+  public get metadata() {
+    if (this.connection.getMetadata() == null) {
+      return null
+    }
+
+    const metadata = this.connection.getMetadata()!
+    const { cdpVersionMajor, cdpVersionMinor, cdpVersionPatch, systemName, applicationName } = metadata
+
+    return {
+      version: `${cdpVersionMajor}.${cdpVersionMinor}.${cdpVersionPatch}`,
+      domain: systemName,
+      root: applicationName
+    }
+  }
 }
 
 export default Client;

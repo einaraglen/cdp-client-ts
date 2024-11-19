@@ -15,17 +15,13 @@ class Connection {
   private listeners: Map<string, Set<Listener>>;
   private buffer: ArrayBufferLike[];
   private metadata?: Hello;
-  private options: ClientOptions
-  private retry = 0
 
   private constructor(url: string, options: ClientOptions) {
     this.url = url;
-    this.options = options
     this.listeners = new Map();
     this.socket = new IsomorphicSocket(options.protocol! + this.url) as WebSocket;
     this.memory = Memory.instance();
     this.socket.binaryType = "arraybuffer";
-    this.socket.onopen = this.onOpen;
     this.socket.onclose = this.onClose;
     this.socket.onmessage = this.onHelloMessage;
     this.socket.onerror = this.onError;
@@ -78,21 +74,6 @@ class Connection {
     this.buffer.splice(0, this.buffer.length);
   };
 
-  private reconnect = () => {
-    if (this.options.maxRetry! != 0 && this.retry >= this.options.maxRetry!) {
-      return;
-    }
-
-    this.socket = new IsomorphicSocket(this.options.protocol! + this.url) as WebSocket;
-    this.socket.binaryType = "arraybuffer";
-    this.socket.onopen = this.onOpen;
-    this.socket.onclose = this.onClose;
-    this.socket.onmessage = this.onHelloMessage;
-    this.socket.onerror = this.onError;
-
-    this.retry += 1
-  };
-
   private makeRootStructureRequest = () => {
     const callbacks = StructureCallbacks.instance();
 
@@ -117,6 +98,8 @@ class Connection {
       this.memory.initiated = true;
       this.memory.flush();
     });
+
+    this.emit("open", event);
   };
 
   private onMessage = (event: MessageEvent<ArrayBuffer>) => {
@@ -127,13 +110,8 @@ class Connection {
     this.emit("error", event);
   };
 
-  private onOpen = (event: Event) => {
-    this.emit("open", event);
-  };
-
   private onClose = (event: CloseEvent) => {
     this.emit("close", event);
-    setTimeout(this.reconnect, this.options.retryTimeout!);
   };
 
   public emit = (key: ListenerKeys, event?: MessageEvent<ArrayBuffer> | Event | CloseEvent | ProtoError) => {
