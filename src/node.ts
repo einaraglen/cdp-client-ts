@@ -1,9 +1,9 @@
-import { CDPNodeType, CDPValueType, Node, VariantValue } from "../models/studio.proto"
-import { SubscribedCallback } from "./callback"
+import { CDPNodeType, CDPValueType, Node, VariantValue } from "./studio.proto"
 import { Connection } from "./connection"
 import { FindChildrenFunction } from "./tree"
 
 export type CDPValue = string | number | boolean | undefined | null;
+export type SubscribedCallback = (value: VariantValue) => void
 
 export class StudioNode {
     private route_: string
@@ -13,8 +13,9 @@ export class StudioNode {
     private nodeType_: CDPNodeType
     private valueType_: CDPValueType
     private typeName_: string
+    private lastValue_: VariantValue | null = null
 
-    public connection: Connection;
+    private connection: Connection;
     private findChildren: FindChildrenFunction
 
     constructor(base: Node, route: string, connection: Connection, findChildren: FindChildrenFunction) {
@@ -27,32 +28,21 @@ export class StudioNode {
         this.nodeType_ = base.info!.nodeType;
         this.valueType_ = base.info!.valueType;
         this.typeName_ = base.info!.typeName;
+
+        this.connection.emitter.on(`value-${this.nodeId_}`, this.listenToValue)
+        this.connection.getValue(this.nodeId_)
     }
 
     public getChildren() {
         return this.findChildren(this.route)
     }
 
-    public subscribeToValue(callback: SubscribedCallback, stop: boolean = false) {
-        if (stop) {
-            this.connection.callback.unsubscribe(this.nodeId_, callback)
-        } else {
-            this.connection.callback.subscribe(this.nodeId_, callback)
-        }
-
-        this.connection.getValue(this.nodeId_)
+    public subscribeToValue(callback: SubscribedCallback) {
+        this.connection.emitter.on(`value-${this.nodeId_}`, callback)
     }
 
-    public getValue() {
-        return new Promise<VariantValue>((resolve) => {
-            const callback = (value: VariantValue) => {
-                this.connection.callback.unsubscribe(this.nodeId_, callback)
-                resolve(value)
-            }
-
-            this.connection.callback.subscribe(this.nodeId_, callback)
-            this.connection.getValue(this.nodeId_)
-        })
+    public unsubscribeToValue(callback: SubscribedCallback) {
+        this.connection.emitter.off(`value-${this.nodeId_}`, callback)
     }
 
     public setValue(value: CDPValue) {
@@ -77,6 +67,14 @@ export class StudioNode {
 
     public get typeName() {
         return this.typeName_;
+    }
+
+    public get lastValue() {
+        return this.lastValue_;
+    }
+
+    private listenToValue = (value: VariantValue) => {
+        this.lastValue_ = value;
     }
 
     public getVariantValue(variant: VariantValue) {

@@ -2,22 +2,19 @@
 // import StructureNode from "./models/node";
 // import { CDPNodeType, CDPValueType } from "./models/studio.proto";
 
-import { StudioClient } from "./v2/client";
+import { StudioClient } from "./client";
 
 const run = async () => {
     const client = new StudioClient("ws://127.0.0.1:7689")
 
     await client.connect()
 
-    const node = await client.find("TestApp.Instructor.Options.Option1.Value")
+    const node = await client.find("TestApp.Instructor.Crane.CraneState.Value")
+    const node2 = await client.find("TestApp.Instructor.Crane.CraneState.Idle.Value")
 
-    node?.subscribeToValue((value) => {
-        console.log(node.getVariantValue(value))
-    })
+    console.log(node?.getVariantValue(node?.lastValue!))
+    console.log(node?.getVariantValue(node2?.lastValue!))
 
 }
 
 run()
-
-
-

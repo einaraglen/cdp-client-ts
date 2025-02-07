@@ -1,77 +1,55 @@
-import Connection, { Listener, ListenerKeys } from "./handlers/connection";
-import Receiver from "./handlers/receiver";
-import Memory from "./models/memory";
+import { Hello as Metadata } from "./studio.proto"
+import { Connection } from "./connection";
+import { StudioTree } from "./tree"
 
-export type ClientOptions = {
-  protocol?: "ws://" | "wss://";
-};
+export class StudioClient {
+    private host: string
+    private metadata_?: Metadata
+    private apps: Set<string> = new Set<string>()
 
-const defaultOptions: ClientOptions = {
-  protocol: "ws://",
-};
+    private connection: Connection;
+    private tree: StudioTree
 
-/**
- * CDP Studio API Client
- */
-class Client {
-  public static SYSTEM_NODE_ID = 0;
-  private connection: Connection;
-  private memory: Memory;
+    constructor(host: string) {
+        this.host = host;
 
-  constructor(url: string, options?: ClientOptions) {
-    const _options = options ? { ...defaultOptions, ...options } : defaultOptions;
-
-    this.connection = Connection.instance(url, _options);
-    this.memory = Memory.instance();
-    this.connection.addListener("message", new Receiver().onMessage);
-  }
-
-  /**
-   * Subscribe to Core Events
-   * @param key String
-   * @param callback Function
-   */
-  public on = (key: Exclude<ListenerKeys, "message">, callback: Listener) => {
-    this.connection.addListener(key as any, callback);
-  };
-
-  /**
-   * Unsubscribe to Core Events
-   * @param key String
-   * @param callback Function
-   */
-  public off = (key: Exclude<ListenerKeys, "message">, callback: Listener) => {
-    this.connection.removeListener(key as any, callback);
-  };
-
-  /**
-   * Search for Nodes in Studio API Tree
-   * @param route String
-   * @throws Error
-   * @returns Promise<StructureNode>
-   */
-  public find = async (route: string) => {
-    return await this.memory.findNode(route);
-  };
-
-  /**
-   * Get Application Metadata
-   * @returns Metadata | null
-   */
-  public get metadata() {
-    if (this.connection.getMetadata() == null) {
-      return null
+        this.connection = new Connection(this.host)
+        this.tree = new StudioTree(this.connection)
     }
 
-    const metadata = this.connection.getMetadata()!
-    const { cdpVersionMajor, cdpVersionMinor, cdpVersionPatch, systemName, applicationName } = metadata
+    public async connect() {
+        const metadata = await this.connection.connect()
 
-    return {
-      version: `${cdpVersionMajor}.${cdpVersionMinor}.${cdpVersionPatch}`,
-      domain: systemName,
-      root: applicationName
+        if (metadata == null) {
+            throw new Error(`Failed to connect to websocket ${this.host}`)
+        }
+
+        this.metadata_ = metadata;
+        this.tree.reset()
+        this.apps = await this.tree.initTree()
     }
-  }
+
+    public find(key: string) {
+        return this.tree.find(key)
+    }
+
+    public close() {
+        this.connection.close();
+    }
+
+    public set on(callback: (key: "close" | "error", event: any) => void) {
+        this.connection.on = callback;
+    }
+
+    public get metadata() {
+        return {
+            system: this.metadata_?.systemName,
+            apps: Array.from(this.apps),
+            version: {
+                major: this.metadata_?.cdpVersionMajor,
+                minor: this.metadata_?.cdpVersionMinor,
+                patch: this.metadata_?.cdpVersionPatch
+            }
+        }
+    }
 }
-
-export default Client;

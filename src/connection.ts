@@ -1,6 +1,6 @@
 import IsomorphicSocket from "isomorphic-ws";
-import { Container, Container_Type, Hello as Metadata, ValueRequest, VariantValue, Node } from "../models/studio.proto";
-import { Callback } from "./callback"
+import { Container, Container_Type, Hello as Metadata, ValueRequest, VariantValue, Node } from "./studio.proto";
+import EventEmitter from "eventemitter3";
 
 export class Connection {
     private host: string
@@ -8,13 +8,18 @@ export class Connection {
     private socket?: WebSocket;
     private metadata_?: Metadata;
     private buffer: ArrayBufferLike[] = [];
+    private on_: ((key: "close" | "error", event: any) => void) | null = null
 
-    public callback: Callback
+    public emitter: EventEmitter;
  
     constructor(host: string) {
         this.host = host;
 
-        this.callback = new Callback();
+        this.emitter = new EventEmitter();
+    }
+
+    public set on(callback: (key: "close" | "error", event: any) => void) {
+        this.on_ = callback;
     }
 
     public get metadata() {
@@ -47,12 +52,23 @@ export class Connection {
         this.socket.send(payload);
     }
 
-    public getChildren(parentId: number) {
-        return new Promise<Node[]>((resolve) => {
-            this.callback.wait(parentId, resolve)
+    public async getChildren(parentId: number) {
+        const children = new Promise<Node[]>((resolve) => {
+            this.emitter.on(`struct-${parentId}`, resolve)
             const message = Container.create({ messageType: Container_Type.eStructureRequest, structureRequest: [parentId] });
             this.send(Container.encode(message).finish());
         })
+
+        const timeout = new Promise<null>((r) => setTimeout(() => r(null), 1000))
+
+        const result = await Promise.race([children, timeout])
+
+        if (result == null) {
+            console.warn("Timeout while getting children")
+            throw new Error("Timeout while getting children")
+        }
+
+        return result;
     }
 
     public getValue(nodeId: number, stop: boolean = false) {
@@ -67,19 +83,15 @@ export class Connection {
         this.send(Container.encode(message).finish());
     }
 
-    private parseChildren(children: Node[]) {
+    private emitChildren(children: Node[]) {
         for (const child of children) {
-            this.callback.runWaiting(child)
+            this.emitter.emit(`struct-${child.info!.nodeId}`, child.node)
         }
     }
 
-    private parseValue(values: VariantValue[]) {
+    private emitValue(values: VariantValue[]) {
         for (const value of values) {
-            const active = this.callback.runSubscribed(value)
-
-            if (!active) {
-                this.getValue(value.nodeId!, true)
-            }
+            this.emitter.emit(`value-${value.nodeId}`, value)
         }
     }
 
@@ -88,10 +100,10 @@ export class Connection {
 
         switch (decoded.messageType) {
             case Container_Type.eStructureResponse:
-                this.parseChildren(decoded.structureResponse);
+                this.emitChildren(decoded.structureResponse);
                 break;
             case Container_Type.eGetterResponse:
-                this.parseValue(decoded.getterResponse);
+                this.emitValue(decoded.getterResponse);
                 break;
             case Container_Type.eStructureChangeResponse:
                 console.warn("TODO: Struct Change")
@@ -114,15 +126,26 @@ export class Connection {
         resolve(decoded)
 
         this.socket!.onmessage = (e) => this.onMessage(e);
+        this.socket!.onerror = (e) => this.onError(e);
+
+        for (const payload of this.buffer) {
+            this.socket!.send(payload);
+        }
     }
 
     private onClose(event: CloseEvent) {
-        // console.log("CLOSE", event)
+        if (this.on_) {
+            this.on_("close", event)
+        }
     }
 
     private onError(event: Event, reject?: (value: Metadata | null) => void) {
         if (reject != null) {
             reject(null)
+        }
+
+        if (this.on_) {
+            this.on_("error", event)
         }
     }
 

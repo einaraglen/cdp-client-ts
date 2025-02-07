@@ -1,5 +1,5 @@
 import { StudioNode } from "./node"
-import { Node } from "../models/studio.proto"
+import { Node, VariantValue } from "./studio.proto"
 import { Connection } from "./connection";
 
 export type FindChildrenFunction = (parentKey: string) => Promise<Map<string, StudioNode>>
@@ -13,6 +13,12 @@ export class StudioTree {
         this.nodes = new Map()
         this.children = new Map()
         this.connection = connection;
+
+    }
+
+    public reset() {
+        this.nodes = new Map()
+        this.children = new Map()
     }
 
     public async initTree(id: number = 0) {
@@ -57,11 +63,17 @@ export class StudioTree {
 
     private insert(parentKey: string, node: Node) {
         const route = this.getPath(parentKey, node.info!.name);
+
+        if (this.nodes.has(route)) {
+            throw new Error(`Node already initiated! ${route}`)
+        }
+
         const child = new StudioNode(node, route, this.connection, this.findChildren)
-        this.nodes.set(route, child)
+
+        this.nodes.set(child.route, child)
 
         const prev = this.children.get(parentKey) || new Map<string, StudioNode>()
-        prev.set(route, child)
+        prev.set(child.route, child)
         this.children.set(parentKey, prev)
     }
 
